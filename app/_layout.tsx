@@ -13,10 +13,6 @@ import { NAV_THEME } from "@/theme";
 
 export { ErrorBoundary } from "expo-router";
 
-export const unstable_settings = {
-  initialRouteName: "(tabs)",
-};
-
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -50,8 +46,7 @@ function RootLayoutNav() {
       <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
       <ThemeProvider value={NAV_THEME[colorScheme]}>
         <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>
     </>

@@ -1,5 +1,7 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+//* Important ignore slta's thoughts 
+
 # dependencies
 node_modules/
 
@@ -39,3 +41,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+backend/node_modules/
+backend/dist/
+
