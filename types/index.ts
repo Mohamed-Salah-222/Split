@@ -1,6 +1,15 @@
 export type Member = {
+  id: string;
   name: string;
   phone: string;
+  items: Item[];
+};
+
+export type Item = {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
 };
 
 export type Group = {
