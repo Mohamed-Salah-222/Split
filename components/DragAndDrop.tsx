@@ -1,109 +1,403 @@
-import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { DraxProvider, DraxView } from "react-native-drax";
+import { getAvatarColor, getInitials } from "@/lib/avatar";
+import { Feather } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
+import { Dimensions, Pressable, Text, View } from "react-native";
+import { DraxProvider, DraxScrollView, DraxView } from "react-native-drax";
 import { Item, Member } from "../types";
-import { useEffect } from "react";
 
-const initialItems: Item[] = [
-  { id: "1", name: "Apple", price: 10, quantity: 2 },
-  { id: "2", name: "Milk", price: 20, quantity: 1 },
-  { id: "3", name: "Bread", price: 15, quantity: 3 },
-  { id: "4", name: "Eggs", price: 30, quantity: 1 },
-];
-
-
-export default function DragDrop(props: { items: Item[], members: Member[] }) {
+export default function DragDrop(props: { items: Item[]; members: Member[] }) {
   const [items, setItems] = useState<Item[]>(props.items);
   const [users, setUsers] = useState<Member[]>(props.members);
-  console.log("items: here :", items);
+  const [activeIndex, setActiveIndex] = useState(0);
+
   useEffect(() => {
-    setUsers(props.members);
+    setUsers(
+      props.members.map((m) => ({
+        ...m,
+        items: m.items ?? [],
+      })),
+    );
     setItems(props.items ?? []);
+    setActiveIndex(0);
   }, [props.members, props.items]);
-  // HACK: find a better way to handle this // maybe just create the user with empty items array // or don't filter items too early
-  users.forEach((user) => {
-    if (user.items === undefined) {
-      user.items = [];
-    }
-  });
 
   const handleDrop = (userId: string, item: Item) => {
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId ? { ...user, items: [...user.items, item] } : user,
-      ),
-    );
-    setItems(
-      (prev) =>
-        prev
-          .map((i) =>
-            i.id === item.id ? { ...i, quantity: i.quantity - 1 } : i,
-          )
-          .filter((i) => i.quantity > 0), // Hide items with 0 quantity
-    );
+    setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, items: [...user.items, { ...item, quantity: 1 }] } : user)));
+    setItems((prev) => {
+      const updated = prev.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity - 1 } : i)).filter((i) => i.quantity > 0);
+      if (activeIndex >= updated.length && updated.length > 0) {
+        setActiveIndex(updated.length - 1);
+      }
+      return updated;
+    });
   };
+
+  const handleRemoveItem = (userId: string, itemIndex: number) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+    const removedItem = user.items[itemIndex];
+
+    setItems((prev) => {
+      const existing = prev.find((i) => i.id === removedItem.id);
+      if (existing) {
+        return prev.map((i) => (i.id === removedItem.id ? { ...i, quantity: i.quantity + 1 } : i));
+      }
+      return [...prev, { ...removedItem, quantity: 1 }];
+    });
+
+    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, items: u.items.filter((_, i) => i !== itemIndex) } : u)));
+  };
+
+  const getTotalForUser = (user: Member) => {
+    return user.items.reduce((sum, item) => sum + item.price, 0);
+  };
+
+  const activeItem = items[activeIndex];
 
   return (
     <DraxProvider>
-      <View style={styles.container}>
-        {/* Items */}
-        <View>
-          <Text>Items</Text>
-          {items.map((item) => (
-            <DraxView
-              key={item.id}
-              style={styles.item}
-              draggable
-              dragPayload={item}
-            >
-              <Text>{item.name}</Text>
-              <Text style={{ fontSize: 12 }}>×{item.quantity}</Text>
-            </DraxView>
-          ))}
-        </View>
+      <View style={{ flex: 1 }}>
+        {/* Items - Single card with arrow navigation */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "600",
+              color: "#666666",
+              marginBottom: 10,
+            }}
+          >
+            {items.length > 0 ? `Items (${activeIndex + 1} of ${items.length})` : "Items (0 remaining)"}
+          </Text>
 
-        {/* Users */}
-        <View>
-          <Text>Users</Text>
-          {users.map((user) => (
-            <DraxView
-              key={user.id}
-              style={styles.user}
-              receptive
-              onReceiveDragDrop={(event) => {
-                const draggedItem = event.dragged.payload as Item;
-                handleDrop(user.id, draggedItem);
+          {items.length > 0 && activeItem ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 8,
               }}
             >
-              <Text>{user.name}</Text>
+              {/* Left arrow */}
+              <Pressable
+                onPress={() => setActiveIndex((prev) => Math.max(0, prev - 1))}
+                disabled={activeIndex <= 0}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
+                  backgroundColor: activeIndex > 0 ? "#FFFFFF" : "#F0F0F0",
+                  borderWidth: 1,
+                  borderColor: "#E5E5E5",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Feather name="chevron-left" size={16} color={activeIndex > 0 ? "#1a1a1a" : "#CCCCCC"} />
+              </Pressable>
 
-              {user.items.map((item) => (
-                <Text key={item.id}>• {item.name}</Text>
-              ))}
-            </DraxView>
-          ))}
+              {/* Item card */}
+              <DraxView
+                key={activeItem.id}
+                draggable
+                dragPayload={activeItem}
+                style={{
+                  width: Dimensions.get("window").width - 40 - 32 - 32 - 16,
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#E5E5E5",
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                }}
+                draggingStyle={{ opacity: 0.4 }}
+                dragReleasedStyle={{ opacity: 1 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "500",
+                    color: "#1a1a1a",
+                  }}
+                  numberOfLines={1}
+                >
+                  {activeItem.name}
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginTop: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: "#1a6ee1",
+                    }}
+                  >
+                    {activeItem.price.toFixed(2)}
+                  </Text>
+                  {activeItem.quantity > 1 && (
+                    <View
+                      style={{
+                        backgroundColor: "#F0F0F0",
+                        borderRadius: 6,
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "600",
+                          color: "#888888",
+                        }}
+                      >
+                        ×{activeItem.quantity}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </DraxView>
+
+              {/* Right arrow */}
+              <Pressable
+                onPress={() => setActiveIndex((prev) => Math.min(items.length - 1, prev + 1))}
+                disabled={activeIndex >= items.length - 1}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
+                  backgroundColor: activeIndex < items.length - 1 ? "#FFFFFF" : "#F0F0F0",
+                  borderWidth: 1,
+                  borderColor: "#E5E5E5",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Feather name="chevron-right" size={16} color={activeIndex < items.length - 1 ? "#1a1a1a" : "#CCCCCC"} />
+              </Pressable>
+            </View>
+          ) : (
+            <View
+              style={{
+                backgroundColor: "#FFFFFF",
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#E5E5E5",
+                borderStyle: "dashed",
+                paddingVertical: 20,
+                alignItems: "center",
+              }}
+            >
+              <Feather name="check-circle" size={20} color="#CCCCCC" />
+              <Text style={{ fontSize: 14, color: "#AAAAAA", marginTop: 6 }}>All items assigned</Text>
+            </View>
+          )}
         </View>
+
+        {/* Drag hint */}
+        {items.length > 0 && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              marginBottom: 12,
+            }}
+          >
+            <Feather name="arrow-down" size={14} color="#AAAAAA" />
+            <Text style={{ fontSize: 12, color: "#AAAAAA" }}>Drag items to a member below</Text>
+          </View>
+        )}
+
+        {/* Members - Vertical drop zones */}
+        <DraxScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingBottom: 40,
+            gap: 10,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {users.map((user, userIndex) => {
+            const color = getAvatarColor(userIndex);
+            const total = getTotalForUser(user);
+
+            return (
+              <DraxView
+                key={user.id}
+                receptive
+                onReceiveDragDrop={(event) => {
+                  const draggedItem = event.dragged.payload as Item;
+                  handleDrop(user.id, draggedItem);
+                }}
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 16,
+                  borderWidth: 1.5,
+                  borderColor: "#E5E5E5",
+                  overflow: "hidden",
+                }}
+                receivingStyle={{
+                  borderColor: "#1a6ee1",
+                  borderWidth: 2,
+                  backgroundColor: "#F8FAFF",
+                }}
+              >
+                {/* User header */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    gap: 12,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: color.bg,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: color.text,
+                      }}
+                    >
+                      {getInitials(user.name)}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: "#1a1a1a",
+                      }}
+                    >
+                      {user.name}
+                    </Text>
+                    {user.items.length > 0 && (
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: "#888888",
+                          marginTop: 2,
+                        }}
+                      >
+                        {user.items.length} {user.items.length === 1 ? "item" : "items"}
+                      </Text>
+                    )}
+                  </View>
+                  {total > 0 && (
+                    <View
+                      style={{
+                        backgroundColor: "#F0F7FF",
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "700",
+                          color: "#1a6ee1",
+                        }}
+                      >
+                        {total.toFixed(2)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Assigned items */}
+                {user.items.length > 0 ? (
+                  <View
+                    style={{
+                      borderTopWidth: 1,
+                      borderTopColor: "#F0F0F0",
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    {user.items.map((item, itemIndex) => (
+                      <View
+                        key={`${item.id}-${itemIndex}`}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingVertical: 8,
+                          borderBottomWidth: itemIndex < user.items.length - 1 ? 1 : 0,
+                          borderBottomColor: "#F8F8F8",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            flex: 1,
+                            fontSize: 14,
+                            color: "#1a1a1a",
+                          }}
+                          numberOfLines={1}
+                        >
+                          {item.name}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "500",
+                            color: "#666666",
+                            marginRight: 10,
+                          }}
+                        >
+                          {item.price.toFixed(2)}
+                        </Text>
+                        <Pressable
+                          onPress={() => handleRemoveItem(user.id, itemIndex)}
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: 6,
+                            backgroundColor: "#FEE2E2",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Feather name="x" size={12} color="#EF4444" />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      borderTopWidth: 1,
+                      borderTopColor: "#F0F0F0",
+                      paddingVertical: 16,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: "#CCCCCC" }}>Drop items here</Text>
+                  </View>
+                )}
+              </DraxView>
+            );
+          })}
+        </DraxScrollView>
       </View>
     </DraxProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  item: {
-    padding: 15,
-    backgroundColor: "#ddd",
-    margin: 5,
-  },
-  user: {
-    padding: 20,
-    backgroundColor: "#cde",
-    margin: 10,
-    minWidth: 120,
-  },
-});

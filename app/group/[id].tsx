@@ -1,76 +1,95 @@
 import DragDrop from "@/components/DragAndDrop";
+import { getAvatarColor, getInitials } from "@/lib/avatar";
 import { groupStorage } from "@/storage/groups";
 import { Group, Item } from "@/types";
 import { isValidId } from "@/utils/helpers";
+import { Feather } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Button, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+type Step = "overview" | "assign";
 
 function GroupNotFound() {
   return (
-    <View className="flex-1 items-center justify-center">
-      <Text>Group not found</Text>
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#F5F4ED",
+      }}
+    >
+      <Feather name="alert-circle" size={48} color="#CCCCCC" />
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: "600",
+          color: "#1a1a1a",
+          marginTop: 16,
+        }}
+      >
+        Group not found
+      </Text>
+      <Pressable
+        onPress={() => router.back()}
+        style={{
+          marginTop: 16,
+          paddingHorizontal: 24,
+          paddingVertical: 12,
+          borderRadius: 12,
+          backgroundColor: "#1a1a1a",
+        }}
+      >
+        <Text style={{ color: "#F5F4ED", fontWeight: "600" }}>Go back</Text>
+      </Pressable>
     </View>
   );
 }
 
 export default function GroupDetail() {
-  const { id } = useLocalSearchParams();
+  const { id: rawId } = useLocalSearchParams();
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  const insets = useSafeAreaInsets();
+
   const [group, setGroup] = useState<Group>();
+  const [loading, setLoading] = useState(true);
+  const [step, setStep] = useState<Step>("overview");
+
+  // Camera
   const [permission, requestPermission] = useCameraPermissions();
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [items, setItems] = useState<Item[]>([]);
   const cameraRef = useRef<CameraView>(null);
-  const test: any = {
+
+  // Items from receipt
+  const [items, setItems] = useState<Item[]>([]);
+
+  // Test data
+  const testResponse: any = {
     status: "success",
-    message: null,
-    confidence: 0.85,
     data: {
-      date: "2021-04-25",
-      time: "15:48:53",
       store: "خير زمان - طنطا",
-      delivery_fee: null,
-      delivery_number: 16007,
-      tax: 0,
-      service: 0,
-      payment_method: "Cash",
       total_price: 93.19,
-      discount: 0,
-      shipping_address: {
-        address: null,
-        city: null,
-        country: "EGYPT",
-      },
       items: [
-        {
-          name: "بریزیدون جبنة فيتا 500 جم",
-          price: 40.95,
-          quantity: 1,
-        },
-        {
-          name: "المراعي لبن كامل الدسم 1 لتر",
-          price: 18.25,
-          quantity: 1,
-        },
-        {
-          name: "جبنه شيدر مستورد 1ك",
-          price: 23.22,
-          quantity: 1,
-        },
-        {
-          name: "المراعي زبادی طبیعی 105جم",
-          price: 32.5,
-          quantity: 1,
-        },
+        { name: "بریزیدون جبنة فيتا 500 جم", price: 40.95, quantity: 1 },
+        { name: "المراعي لبن كامل الدسم 1 لتر", price: 18.25, quantity: 1 },
+        { name: "جبنه شيدر مستورد 1ك", price: 23.22, quantity: 1 },
+        { name: "المراعي زبادی طبیعی 105جم", price: 32.5, quantity: 1 },
       ],
     },
   };
 
   useEffect(() => {
-    if (!isValidId(id)) return;
+    if (!isValidId(id)) {
+      setLoading(false);
+      return;
+    }
     groupStorage.getGroupById(id).then((g) => {
       if (g !== null) setGroup(g);
+      setLoading(false);
     });
   }, [id]);
 
@@ -81,75 +100,302 @@ export default function GroupDetail() {
       const photo = await cameraRef.current.takePictureAsync({ base64: true });
       if (!photo?.uri) throw new Error("No photo captured");
 
-      const result = test;
-      result.data.items.forEach((item: Item, index: number) => {
-        item.id = index.toString();
-      });
-      setItems(result.data.items);
-
-      console.log("tranformImage result:", JSON.stringify(result, null, 2));
+      // TODO: Replace testResponse with actual API call:
+      // const result = await tranformImage(photo.uri);
+      const result = testResponse;
+      const parsedItems: Item[] = result.data.items.map((item: any, index: number) => ({
+        ...item,
+        id: index.toString(),
+      }));
+      setItems(parsedItems);
+      setCameraOpen(false);
+      setStep("assign");
     } catch (err) {
-      console.error("Capture/transform error:", err);
+      console.error("Capture error:", err);
     } finally {
       setProcessing(false);
     }
   };
 
-  if (!permission) {
-    return <View />;
-  }
+  const handleOpenCamera = async () => {
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) return;
+    }
+    setCameraOpen(true);
+  };
 
-  if (!permission.granted) {
+  // Loading state
+  if (loading) {
     return (
-      <View className="flex-1 items-center justify-center gap-4">
-        <Text>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="Grant permission" />
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#F5F4ED",
+        }}
+      >
+        <ActivityIndicator size="large" color="#1a1a1a" />
       </View>
     );
   }
 
-  if (!isValidId(id)) return <GroupNotFound />;
-  if (!group) return <GroupNotFound />;
+  if (!isValidId(id) || !group) return <GroupNotFound />;
 
   return (
-    <View className="flex-1 bg-background p-4">
-      <View className="mb-6">
-        <Text className="text-3xl font-bold text-foreground">{group.name}</Text>
-        <Text className="text-sm text-muted-foreground mt-1">
-          {group.members.length} members • {group.sessionCount} sessions
-        </Text>
-      </View>
-
-      <View className="mb-6">
-        <Text className="text-lg font-semibold text-foreground mb-3">Members</Text>
-        {group.members.map((member) => (
-          <View key={member.phone || member.name} className="flex-row items-center py-2 border-b border-border">
-            <Text className="text-base text-foreground flex-1">{member.name}</Text>
-            <Text className="text-sm text-muted-foreground">{member.phone}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View className="mb-6 rounded-2xl overflow-hidden">
-        <CameraView ref={cameraRef} facing="front" style={{ height: 240 }} />
+    <View style={{ flex: 1, backgroundColor: "#F5F4ED", paddingTop: insets.top }}>
+      {/* Header */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 12,
+          gap: 12,
+        }}
+      >
         <Pressable
-          onPress={handleCapture}
-          disabled={processing}
-          style={({ pressed }) => ({
-            backgroundColor: processing ? "#6b7280" : "#111827",
-            paddingVertical: 14,
+          onPress={() => {
+            if (step === "assign") {
+              setStep("overview");
+            } else {
+              router.back();
+            }
+          }}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            backgroundColor: "#FFFFFF",
+            borderWidth: 1,
+            borderColor: "#E5E5E5",
             alignItems: "center",
-            opacity: pressed ? 0.8 : 1,
-          })}
+            justifyContent: "center",
+          }}
         >
-          {processing ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "600", fontSize: 15 }}>📸 Capture & Analyse</Text>}
+          <Feather name="arrow-left" size={18} color="#1a1a1a" />
         </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 20, fontWeight: "700", color: "#1a1a1a" }} numberOfLines={1}>
+            {group.name}
+          </Text>
+          <Text style={{ fontSize: 13, color: "#888888", marginTop: 2 }}>
+            {group.members.length} {group.members.length === 1 ? "member" : "members"} • {group.sessionCount} {group.sessionCount === 1 ? "session" : "sessions"}
+          </Text>
+        </View>
       </View>
 
-      <View className="flex-1">
-        <Text className="text-lg font-semibold text-foreground mb-3">Assign items</Text>
-        <DragDrop items={items} members={group.members} />
-      </View>
+      {/* Step: Overview */}
+      {step === "overview" && (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingBottom: insets.bottom + 100,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Members */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "600",
+              color: "#666666",
+              marginBottom: 12,
+              marginTop: 8,
+            }}
+          >
+            Members
+          </Text>
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: "#E5E5E5",
+              overflow: "hidden",
+            }}
+          >
+            {group.members.map((member, index) => {
+              const color = getAvatarColor(index);
+              return (
+                <View
+                  key={member.id || member.name}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    borderBottomWidth: index < group.members.length - 1 ? 1 : 0,
+                    borderBottomColor: "#F0F0F0",
+                    gap: 12,
+                  }}
+                >
+                  {/* Avatar */}
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: color.bg,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: color.text,
+                      }}
+                    >
+                      {getInitials(member.name)}
+                    </Text>
+                  </View>
+
+                  {/* Info */}
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "500",
+                        color: "#1a1a1a",
+                      }}
+                    >
+                      {member.name}
+                    </Text>
+                    {member.phone ? (
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: "#888888",
+                          marginTop: 2,
+                        }}
+                      >
+                        {member.phone}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Scan Button */}
+          <Pressable
+            onPress={handleOpenCamera}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              backgroundColor: "#1a1a1a",
+              borderRadius: 14,
+              paddingVertical: 16,
+              marginTop: 32,
+            }}
+          >
+            <Feather name="camera" size={20} color="#F5F4ED" />
+            <Text style={{ color: "#F5F4ED", fontWeight: "600", fontSize: 16 }}>Scan Receipt</Text>
+          </Pressable>
+        </ScrollView>
+      )}
+
+      {/* Step: Assign Items */}
+      {step === "assign" && (
+        <View style={{ flex: 1 }}>
+          <DragDrop items={items} members={group.members} />
+        </View>
+      )}
+
+      {/* Camera Modal */}
+      <Modal visible={cameraOpen} animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "#000000",
+            paddingTop: insets.top,
+          }}
+        >
+          {/* Camera Header */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingHorizontal: 20,
+              paddingVertical: 12,
+            }}
+          >
+            <Pressable
+              onPress={() => setCameraOpen(false)}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: "rgba(255,255,255,0.15)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Feather name="x" size={20} color="#FFFFFF" />
+            </Pressable>
+            <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 16 }}>Scan Receipt</Text>
+            <View style={{ width: 36 }} />
+          </View>
+
+          {/* Camera View */}
+          <View style={{ flex: 1 }}>
+            <CameraView ref={cameraRef} facing="back" style={{ flex: 1 }} />
+          </View>
+
+          {/* Capture Button */}
+          <View
+            style={{
+              alignItems: "center",
+              paddingVertical: 32,
+              paddingBottom: insets.bottom + 32,
+            }}
+          >
+            {processing ? (
+              <View
+                style={{
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <ActivityIndicator size="large" color="#FFFFFF" />
+                <Text style={{ color: "#FFFFFF", fontSize: 14 }}>Analyzing receipt...</Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={handleCapture}
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 36,
+                  borderWidth: 4,
+                  borderColor: "#FFFFFF",
+                  backgroundColor: "transparent",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <View
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: 29,
+                    backgroundColor: "#FFFFFF",
+                  }}
+                />
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -1,5 +1,6 @@
 import { groupStorage } from "@/storage/groups";
 import type { Member } from "@/types";
+import { generateId } from "@/utils/helpers";
 import { useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
@@ -66,11 +67,11 @@ function MemberRow({ member, index, onChange, onRemove, errors }: { member: Memb
 export default function CreateGroupScreen() {
   const [groupName, setGroupName] = useState("");
   const [creator, setCreator] = useState("");
-  const [members, setMembers] = useState<Member[]>([{ name: "", phone: "" }]);
+  const [members, setMembers] = useState<Member[]>([{ id: generateId(), name: "", phone: "", items: [] }]);
   const [memberErrors, setMemberErrors] = useState<(Partial<Member> | undefined)[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const addMember = () => setMembers((prev) => [...prev, { name: "", phone: "" }]);
+  const addMember = () => setMembers((prev) => [...prev, { id: generateId(), name: "", phone: "", items: [] }]);
 
   const removeMember = (index: number) => {
     setMembers((prev) => prev.filter((_, i) => i !== index));
@@ -87,6 +88,7 @@ export default function CreateGroupScreen() {
       name: groupName,
       creator,
       members,
+      sessionCount: 0,
     });
 
     setLoading(false);
@@ -102,7 +104,8 @@ export default function CreateGroupScreen() {
         onPress: () => {
           setGroupName("");
           setCreator("");
-          setMembers([{ name: "", phone: "" }]);
+          setMembers([{ id: generateId(), name: "", phone: "", items: [] }]);
+
           setMemberErrors([]);
         },
       },

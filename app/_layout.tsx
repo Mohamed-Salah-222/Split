@@ -48,6 +48,7 @@ function RootLayoutNav() {
       <ThemeProvider value={NAV_THEME[colorScheme]}>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="group/[id]" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>

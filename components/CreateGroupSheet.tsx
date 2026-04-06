@@ -142,7 +142,14 @@ const CreateGroupSheet = forwardRef<BottomSheet, Props>(({ onCreated, onClose },
       return;
     }
 
-    const validMembers: Member[] = members.filter((m) => m.name.trim() !== "").map((m) => ({ name: m.name.trim(), phone: m.phone.trim() }));
+    const validMembers: Member[] = members
+      .filter((m) => m.name.trim() !== "")
+      .map((m) => ({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+        name: m.name.trim(),
+        phone: m.phone.trim(),
+        items: [],
+      }));
 
     if (validMembers.length === 0) {
       Alert.alert("No members", "Add at least one member with a name.");
@@ -160,6 +167,7 @@ const CreateGroupSheet = forwardRef<BottomSheet, Props>(({ onCreated, onClose },
       name: trimmedName,
       creator: "Me",
       members: validMembers,
+      sessionCount: 0,
     });
     setLoading(false);
 
