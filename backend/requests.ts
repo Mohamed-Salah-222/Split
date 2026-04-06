@@ -1,4 +1,3 @@
-import fs from 'fs';
 import { OpenAI } from 'openai';
 
 
@@ -198,5 +197,19 @@ export async function tranformImage(image: File): Promise<any> {
     return parsedTokens;
   } catch (err) {
     console.error('Error during OCR analysis:', err.message);
+  }
+}
+
+
+export function createWpSendMessageLink(message: string, phone: string): string {
+  try {
+    const baseUrl = "https://api.whatsapp.com/send?phone=";
+    const url = baseUrl + phone + "&text=" + message;
+    console.log("Created whatsapp message link: ", url);
+    return url;
+  }
+  catch (error) {
+    console.error("Error creating whatsapp message link: ", error);
+    return "Error";
   }
 }
