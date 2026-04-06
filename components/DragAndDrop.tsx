@@ -7,7 +7,9 @@ import { Item, Member } from "../types";
 
 export default function DragDrop(props: { items: Item[]; members: Member[] }) {
   const [items, setItems] = useState<Item[]>(props.items);
-  const [users, setUsers] = useState<Member[]>(props.members);
+  const [users, setUsers] = useState<Member[]>(
+    props.members.map((m) => ({ ...m, items: m.items ?? [] }))
+  );
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
