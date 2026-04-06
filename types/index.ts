@@ -12,6 +12,11 @@ export type Item = {
   quantity: number;
 };
 
+export type Payer = {
+  member: Member;
+  amount_due: number;
+}
+
 export type Group = {
   id: string;
   name: string;

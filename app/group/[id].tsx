@@ -12,6 +12,35 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Step = "overview" | "assign";
 
+// const MOCK_GROUP: Group = {
+//   id: "123",
+//   name: "Group name",
+//   creator: "Saif Ul Islam",
+//   createdAt: "2023-01-01T00:00:00.000Z",
+//   sessionCount: 0,
+//   members: [
+//     {
+//       id: "123",
+//       name: "Saif Ul Islam",
+//       phone: "+201000049956",
+//       items: [],
+//     },
+//     {
+//       id: "1234",
+//       name: "Mohammed Ali",
+//       phone: "+201000049956",
+//       items: [],
+//     },
+//     {
+//       id: "12345",
+//       name: "Slah el gay",
+//       phone: "+201000049956",
+//       items: [],
+//     },
+//   ],
+// };
+//
+
 function GroupNotFound() {
   return (
     <View
@@ -63,6 +92,7 @@ export default function GroupDetail() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
+  const [total, setTotal] = useState(0);
 
   // Items from receipt
   const [items, setItems] = useState<Item[]>([]);
@@ -72,7 +102,7 @@ export default function GroupDetail() {
     status: "success",
     data: {
       store: "خير زمان - طنطا",
-      total_price: 93.19,
+      total_price: 114.92,
       items: [
         { name: "بریزیدون جبنة فيتا 500 جم", price: 40.95, quantity: 1 },
         { name: "المراعي لبن كامل الدسم 1 لتر", price: 18.25, quantity: 1 },
@@ -81,6 +111,7 @@ export default function GroupDetail() {
       ],
     },
   };
+
 
   useEffect(() => {
     if (!isValidId(id)) {
@@ -108,6 +139,7 @@ export default function GroupDetail() {
         id: index.toString(),
       }));
       setItems(parsedItems);
+      setTotal(result.data.total_price);
       setCameraOpen(false);
       setStep("assign");
     } catch (err) {
@@ -303,10 +335,11 @@ export default function GroupDetail() {
         </ScrollView>
       )}
 
+
       {/* Step: Assign Items */}
       {step === "assign" && (
         <View style={{ flex: 1 }}>
-          <DragDrop items={items} members={group.members} />
+          <DragDrop items={items} group={group} total={total} />
         </View>
       )}
 

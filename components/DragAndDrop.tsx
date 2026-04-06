@@ -3,25 +3,39 @@ import { Feather } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Dimensions, Pressable, Text, View } from "react-native";
 import { DraxProvider, DraxScrollView, DraxView } from "react-native-drax";
-import { Item, Member } from "../types";
+import { Item, Member, Group, Payer } from "../types";
+import { createWpSendMessageLink, normalizePhoneNumber } from "@/utils/helpers";
 
-export default function DragDrop(props: { items: Item[]; members: Member[] }) {
+export default function DragDrop(props: { items: Item[]; group: Group, total: number }) {
   const [items, setItems] = useState<Item[]>(props.items);
   const [users, setUsers] = useState<Member[]>(
-    props.members.map((m) => ({ ...m, items: m.items ?? [] }))
+    props.group.members.map((m) => ({ ...m, items: m.items ?? [] }))
   );
+  const [payers, setPayers] = useState<Payer[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     setUsers(
-      props.members.map((m) => ({
+      props.group.members.map((m) => ({
         ...m,
         items: m.items ?? [],
       })),
     );
     setItems(props.items ?? []);
     setActiveIndex(0);
-  }, [props.members, props.items]);
+  }, [props.group.members, props.items]);
+
+  const isPayer = (user: Member) => {
+    return payers.some((p) => p.member.id === user.id);
+  }
+
+  const handleMarkPayer = (user: Member) => {
+    setPayers((prev) => {
+      const newPayers = [...prev, { member: user, amount_due: 0 }];
+      const share = props.total / newPayers.length;
+      return newPayers.map((payer) => ({ ...payer, amount_due: share }));
+    });
+  };
 
   const handleDrop = (userId: string, item: Item) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, items: [...user.items, { ...item, quantity: 1 }] } : user)));
@@ -33,6 +47,63 @@ export default function DragDrop(props: { items: Item[]; members: Member[] }) {
       return updated;
     });
   };
+
+  const formatMessage = (payer: Payer, user: Member, totalCost: number) => {
+    const message = `I have ${user.items.length} items for you:
+    ${user.items.map((item) => item.name).join(", ")}
+    please pay me ${totalCost}
+    at this phone number: ${payer.member.phone} `;
+    const url = createWpSendMessageLink(message, normalizePhoneNumber(payer.member.phone));
+    return url;
+  }
+
+  const handleSendMessage = (user: Member, payer: Payer) => {
+    let totalCost = (user.items ?? []).reduce((sum, item) => sum + item.price, 0);
+    if (payer.amount_due < totalCost) {
+      totalCost = payer.amount_due;
+    }
+    const message = formatMessage(payer, user, totalCost);
+
+    // Open WhatsApp link
+    // const phone = payer.member.phone?.replace(/\D/g, ""); // strip non-digits
+    // const encodedMessage = encodeURIComponent(message);
+    window.open(message);
+
+    // Reduce amount due
+    setPayers((prev) =>
+      prev.map((p) => {
+        if (p.member.id === payer.member.id) {
+          return { ...p, amount_due: p.amount_due - totalCost }; // avoid mutating directly
+        }
+        return p;
+      }),
+    );
+  };
+  // const handleSendMessage = (user: Member, payer: Payer) => {
+  //   let totalCost = user.items.reduce((sum, item) => sum + item.price, 0);
+  //   if (payer.amount_due < totalCost) {
+  //     totalCost = payer.amount_due;
+  //   }
+  //   const message = formatMessage(payer, user, totalCost);
+  //
+  //   // alert(`payer amoutn due before: ${payer.amount_due}`);
+  //   // Reduce amout due //
+  //   //
+  //   // NOTE: this should happend after the message is sent // not sure how should we verify this for now
+  //   setPayers((prev) => {
+  //     const newPayers = prev.map((p) => {
+  //       if (p.member.id === payer.member.id) {
+  //         p.amount_due -= totalCost;
+  //       }
+  //       return p;
+  //     });
+  //     return newPayers;
+  //   });
+  //   // send message (open whatsapp link)
+  //
+  //
+  //   // alert(`payer amoutn due after: ${payer.amount_due}`);
+  // };
 
   const handleRemoveItem = (userId: string, itemIndex: number) => {
     const user = users.find((u) => u.id === userId);
@@ -69,7 +140,7 @@ export default function DragDrop(props: { items: Item[]; members: Member[] }) {
               marginBottom: 10,
             }}
           >
-            {items.length > 0 ? `Items (${activeIndex + 1} of ${items.length})` : "Items (0 remaining)"}
+            {items.length > 0 ? `Items(${activeIndex + 1} of ${items.length})` : "Items (0 remaining)"}
           </Text>
 
           {items.length > 0 && activeItem ? (
@@ -198,7 +269,8 @@ export default function DragDrop(props: { items: Item[]; members: Member[] }) {
               <Feather name="check-circle" size={20} color="#CCCCCC" />
               <Text style={{ fontSize: 14, color: "#AAAAAA", marginTop: 6 }}>All items assigned</Text>
             </View>
-          )}
+          )
+          }
         </View>
 
         {/* Drag hint */}
@@ -326,6 +398,83 @@ export default function DragDrop(props: { items: Item[]; members: Member[] }) {
                   )}
                 </View>
 
+                {user.phone && !isPayer(user) && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      gap: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: "#1a1a1a",
+                      }}
+                    >
+                      {payers.filter((p) => p.amount_due > 0).map((p) => {
+                        return (
+                          <Pressable
+                            key={p.member.id}
+                            onPress={() => {
+                              handleSendMessage(user, p)
+                            }}
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 6,
+                              backgroundColor: "#FEE2E2",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Feather name="message-square" size={12} color="#EF4444" />
+                          </Pressable>
+                        );
+                      })}
+
+                    </Text>
+                  </View>
+                )
+                }
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    gap: 12,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: "#1a1a1a",
+                    }}
+                  >
+                    mark payer
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      handleMarkPayer(user)
+                    }}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 6,
+                      backgroundColor: "#FEE2E2",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Feather name="message-circle" size={12} color="#EF4444" />
+                  </Pressable>
+                </View>
                 {/* Assigned items */}
                 {user.items.length > 0 ? (
                   <View
@@ -338,7 +487,7 @@ export default function DragDrop(props: { items: Item[]; members: Member[] }) {
                   >
                     {user.items.map((item, itemIndex) => (
                       <View
-                        key={`${item.id}-${itemIndex}`}
+                        key={`${item.id} -${itemIndex} `}
                         style={{
                           flexDirection: "row",
                           alignItems: "center",

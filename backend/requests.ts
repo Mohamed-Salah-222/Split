@@ -201,15 +201,3 @@ export async function tranformImage(image: string): Promise<any> {
 }
 
 
-export function createWpSendMessageLink(message: string, phone: string): string {
-  try {
-    const baseUrl = "https://api.whatsapp.com/send?phone=";
-    const url = baseUrl + phone + "&text=" + message;
-    console.log("Created whatsapp message link: ", url);
-    return url;
-  }
-  catch (error) {
-    console.error("Error creating whatsapp message link: ", error);
-    return "Error";
-  }
-}
