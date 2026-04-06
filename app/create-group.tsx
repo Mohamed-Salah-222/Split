@@ -1,34 +1,12 @@
-import { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-} from "react-native";
-import type { Member } from "@/types";
 import { groupStorage } from "@/storage/groups";
-import { generateId } from "@/utils/helpers";
+import type { Member } from "@/types";
+import { useState } from "react";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function FormField({ label, value, onChangeText, placeholder, keyboardType = "default", error, }: {
-  label: string;
-  value: string;
-  onChangeText: (t: string) => void;
-  placeholder?: string;
-  keyboardType?: "default" | "phone-pad";
-  error?: string;
-}) {
+function FormField({ label, value, onChangeText, placeholder, keyboardType = "default", error }: { label: string; value: string; onChangeText: (t: string) => void; placeholder?: string; keyboardType?: "default" | "phone-pad"; error?: string }) {
   return (
     <View style={{ marginBottom: 16 }}>
-      <Text style={{ fontSize: 14, fontWeight: "500", color: "#111827", marginBottom: 6 }}>
-        {label}
-      </Text>
+      <Text style={{ fontSize: 14, fontWeight: "500", color: "#111827", marginBottom: 6 }}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -46,20 +24,12 @@ function FormField({ label, value, onChangeText, placeholder, keyboardType = "de
           borderColor: error ? "#ef4444" : "transparent",
         }}
       />
-      {error ? (
-        <Text style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{error}</Text>
-      ) : null}
+      {error ? <Text style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{error}</Text> : null}
     </View>
   );
 }
 
-function MemberRow({ member, index, onChange, onRemove, errors, }: {
-  member: Member;
-  index: number;
-  onChange: (index: number, field: keyof Member, value: string) => void;
-  onRemove: (index: number) => void;
-  errors?: Partial<Member>;
-}) {
+function MemberRow({ member, index, onChange, onRemove, errors }: { member: Member; index: number; onChange: (index: number, field: keyof Member, value: string) => void; onRemove: (index: number) => void; errors?: Partial<Member> }) {
   return (
     <View
       style={{
@@ -72,9 +42,7 @@ function MemberRow({ member, index, onChange, onRemove, errors, }: {
       }}
     >
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: "#111827" }}>
-          Member {index + 1}
-        </Text>
+        <Text style={{ fontSize: 14, fontWeight: "600", color: "#111827" }}>Member {index + 1}</Text>
         <Pressable
           onPress={() => onRemove(index)}
           style={({ pressed }) => ({
@@ -89,45 +57,27 @@ function MemberRow({ member, index, onChange, onRemove, errors, }: {
         </Pressable>
       </View>
 
-      <FormField
-        label="Name"
-        value={member.name}
-        onChangeText={(v) => onChange(index, "name", v)}
-        placeholder="Full name"
-        error={errors?.name}
-      />
-      <FormField
-        label="Phone"
-        value={member.phone}
-        onChangeText={(v) => onChange(index, "phone", v)}
-        placeholder="+1 555 000 0000"
-        keyboardType="phone-pad"
-        error={errors?.phone}
-      />
+      <FormField label="Name" value={member.name} onChangeText={(v) => onChange(index, "name", v)} placeholder="Full name" error={errors?.name} />
+      <FormField label="Phone" value={member.phone} onChangeText={(v) => onChange(index, "phone", v)} placeholder="+1 555 000 0000" keyboardType="phone-pad" error={errors?.phone} />
     </View>
   );
 }
 
-
 export default function CreateGroupScreen() {
   const [groupName, setGroupName] = useState("");
   const [creator, setCreator] = useState("");
-  const [members, setMembers] = useState<Member[]>([{ id: generateId(), name: "", phone: "" }]);
+  const [members, setMembers] = useState<Member[]>([{ name: "", phone: "" }]);
   const [memberErrors, setMemberErrors] = useState<(Partial<Member> | undefined)[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const addMember = () =>
-    setMembers((prev) => [...prev, { id: generateId(), name: "", phone: "" }]);
+  const addMember = () => setMembers((prev) => [...prev, { name: "", phone: "" }]);
 
   const removeMember = (index: number) => {
     setMembers((prev) => prev.filter((_, i) => i !== index));
     setMemberErrors((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const updateMember = (index: number, field: keyof Member, value: string) =>
-    setMembers((prev) =>
-      prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
-    );
+  const updateMember = (index: number, field: keyof Member, value: string) => setMembers((prev) => prev.map((m, i) => (i === index ? { ...m, [field]: value } : m)));
 
   const handleCreate = async () => {
     setLoading(true);
@@ -137,13 +87,11 @@ export default function CreateGroupScreen() {
       name: groupName,
       creator,
       members,
-      sessionCount: 0,
     });
 
     setLoading(false);
 
     if (result.error) {
-      // Surface member-level errors if the error string names a field
       Alert.alert("Validation Error", result.error);
       return;
     }
@@ -162,49 +110,22 @@ export default function CreateGroupScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#ffffff" }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={80}
-    >
-      {/* Header */}
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: "#ffffff" }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={80}>
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
         <Text style={{ fontSize: 14, color: "#6b7280" }}>Organize your people</Text>
         <Text style={{ fontSize: 30, fontWeight: "700", color: "#111827" }}>Create a group</Text>
       </View>
 
-      {/* Scrollable form */}
-      <ScrollView
-        style={{ flex: 1, paddingHorizontal: 20 }}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Group Info */}
+      <ScrollView style={{ flex: 1, paddingHorizontal: 20 }} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={{ marginBottom: 24 }}>
-          <Text style={{ fontSize: 11, fontWeight: "600", color: "#9ca3af", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>
-            Group Info
-          </Text>
-          <FormField
-            label="Group name"
-            value={groupName}
-            onChangeText={setGroupName}
-            placeholder="e.g. Weekend Hikers"
-          />
-          <FormField
-            label="Your name (creator)"
-            value={creator}
-            onChangeText={setCreator}
-            placeholder="e.g. Alex Johnson"
-          />
+          <Text style={{ fontSize: 11, fontWeight: "600", color: "#9ca3af", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Group Info</Text>
+          <FormField label="Group name" value={groupName} onChangeText={setGroupName} placeholder="e.g. Weekend Hikers" />
+          <FormField label="Your name (creator)" value={creator} onChangeText={setCreator} placeholder="e.g. Alex Johnson" />
         </View>
 
-        {/* Members */}
         <View>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <Text style={{ fontSize: 11, fontWeight: "600", color: "#9ca3af", letterSpacing: 1.2, textTransform: "uppercase" }}>
-              Members ({members.length})
-            </Text>
+            <Text style={{ fontSize: 11, fontWeight: "600", color: "#9ca3af", letterSpacing: 1.2, textTransform: "uppercase" }}>Members ({members.length})</Text>
             <Pressable
               onPress={addMember}
               style={({ pressed }) => ({
@@ -220,19 +141,11 @@ export default function CreateGroupScreen() {
           </View>
 
           {members.map((member, index) => (
-            <MemberRow
-              key={member.id}
-              member={member}
-              index={index}
-              onChange={updateMember}
-              onRemove={removeMember}
-              errors={memberErrors[index]}
-            />
+            <MemberRow key={index} member={member} index={index} onChange={updateMember} onRemove={removeMember} errors={memberErrors[index]} />
           ))}
         </View>
       </ScrollView>
 
-      {/* Footer CTA */}
       <View
         style={{
           position: "absolute",
@@ -258,13 +171,7 @@ export default function CreateGroupScreen() {
             opacity: pressed || loading ? 0.7 : 1,
           })}
         >
-          {loading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={{ color: "#ffffff", fontWeight: "600", fontSize: 16 }}>
-              Create group
-            </Text>
-          )}
+          {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={{ color: "#ffffff", fontWeight: "600", fontSize: 16 }}>Create group</Text>}
         </Pressable>
       </View>
     </KeyboardAvoidingView>

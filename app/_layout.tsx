@@ -1,4 +1,3 @@
-import "../global.css";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
@@ -6,7 +5,9 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
+import "../global.css";
 
 import { useColorScheme } from "@/lib/useColorScheme";
 import { NAV_THEME } from "@/theme";
@@ -42,13 +43,13 @@ function RootLayoutNav() {
   const { colorScheme, isDarkColorScheme } = useColorScheme();
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
       <ThemeProvider value={NAV_THEME[colorScheme]}>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>
-    </>
+    </GestureHandlerRootView>
   );
 }

@@ -1,6 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Group, CreateGroupInput, Member } from "@/types";
+import { CreateGroupInput, Group, Member } from "@/types";
 import { generateId } from "@/utils/helpers";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const GROUPS_KEY = "splitly_groups";
 
@@ -11,14 +11,13 @@ function validate(input: CreateGroupInput): string | null {
 
   for (let i = 0; i < input.members.length; i++) {
     const member: Member = input.members[i];
-    if (!member.name || !member.phone) {
-      return `Each member must have name and phone (index ${i})`;
+    if (!member.name) {
+      return `Each member must have a name (index ${i})`;
     }
   }
 
   return null;
 }
-
 
 async function getGroups(): Promise<Group[]> {
   const data = await AsyncStorage.getItem(GROUPS_KEY);
@@ -26,12 +25,10 @@ async function getGroups(): Promise<Group[]> {
   return JSON.parse(data) as Group[];
 }
 
-
 async function getGroupById(id: string): Promise<Group | null> {
   const groups = await getGroups();
   return groups.find((g) => g.id === id) || null;
 }
-
 
 async function createGroup(input: CreateGroupInput): Promise<{ group?: Group; error?: string }> {
   const error = validate(input);
@@ -43,7 +40,8 @@ async function createGroup(input: CreateGroupInput): Promise<{ group?: Group; er
     creator: input.creator,
     members: input.members,
     createdAt: new Date().toISOString(),
-    sessionCount: input.sessionCount,
+    sessionCount: 0,
+    lastSplit: undefined,
   };
 
   const groups = await getGroups();
@@ -52,7 +50,6 @@ async function createGroup(input: CreateGroupInput): Promise<{ group?: Group; er
 
   return { group: newGroup };
 }
-
 
 async function updateGroup(id: string, updates: Partial<CreateGroupInput>): Promise<{ group?: Group; error?: string }> {
   const groups = await getGroups();
@@ -65,7 +62,6 @@ async function updateGroup(id: string, updates: Partial<CreateGroupInput>): Prom
   if (updates.name) group.name = updates.name;
   if (updates.creator) group.creator = updates.creator;
   if (updates.members) {
-
     const input = {
       name: group.name,
       creator: group.creator,
@@ -73,7 +69,7 @@ async function updateGroup(id: string, updates: Partial<CreateGroupInput>): Prom
       sessionCount: group.sessionCount,
     } as CreateGroupInput;
 
-    const error = validate(input)
+    const error = validate(input);
     if (error) return { error };
     group.members = updates.members;
   }
@@ -83,7 +79,6 @@ async function updateGroup(id: string, updates: Partial<CreateGroupInput>): Prom
 
   return { group };
 }
-
 
 async function deleteGroup(id: string): Promise<{ group?: Group; error?: string }> {
   const groups = await getGroups();
