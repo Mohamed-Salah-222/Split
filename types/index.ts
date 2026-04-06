@@ -18,10 +18,13 @@ export type Group = {
   creator: string;
   members: Member[];
   createdAt: string;
+  sessionCount: number;
+  lastSplit?: string;
 };
 
 export type CreateGroupInput = {
   name: string;
   creator: string;
   members: Member[];
+  sessionCount: number;
 };
