@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -12,17 +12,11 @@ import {
 } from "react-native";
 import type { Member } from "@/types";
 import { groupStorage } from "@/storage/groups";
+import { generateId } from "@/utils/helpers";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function FormField({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType = "default",
-  error,
-}: {
+function FormField({ label, value, onChangeText, placeholder, keyboardType = "default", error, }: {
   label: string;
   value: string;
   onChangeText: (t: string) => void;
@@ -59,13 +53,7 @@ function FormField({
   );
 }
 
-function MemberRow({
-  member,
-  index,
-  onChange,
-  onRemove,
-  errors,
-}: {
+function MemberRow({ member, index, onChange, onRemove, errors, }: {
   member: Member;
   index: number;
   onChange: (index: number, field: keyof Member, value: string) => void;
@@ -120,16 +108,16 @@ function MemberRow({
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function CreateGroupScreen() {
   const [groupName, setGroupName] = useState("");
   const [creator, setCreator] = useState("");
-  const [members, setMembers] = useState<Member[]>([{ name: "", phone: "" }]);
+  const [members, setMembers] = useState<Member[]>([{ id: generateId(), name: "", phone: "" }]);
   const [memberErrors, setMemberErrors] = useState<(Partial<Member> | undefined)[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const addMember = () => setMembers((prev) => [...prev, { name: "", phone: "" }]);
+  const addMember = () =>
+    setMembers((prev) => [...prev, { id: generateId(), name: "", phone: "" }]);
 
   const removeMember = (index: number) => {
     setMembers((prev) => prev.filter((_, i) => i !== index));
@@ -233,7 +221,7 @@ export default function CreateGroupScreen() {
 
           {members.map((member, index) => (
             <MemberRow
-              key={index}
+              key={member.id}
               member={member}
               index={index}
               onChange={updateMember}

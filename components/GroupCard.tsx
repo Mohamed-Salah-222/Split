@@ -1,5 +1,6 @@
 import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
+import { groupStorage } from "@/storage/groups";
 
 type Member = {
   name: string;
@@ -31,6 +32,10 @@ export default function GroupCard({ group }: GroupCardProps) {
   const visibleMembers = group.members.slice(0, maxAvatars);
   const overflow = group.members.length - maxAvatars;
 
+  const onDelete = async () => {
+    groupStorage.deleteGroup(group.id).then(() => router.push("/"));
+  };
+
   return (
     <Pressable className="bg-card rounded-xl border border-border p-4 mb-3 active:opacity-80" onPress={() => router.push(`/group/${group.id}`)}>
       {/* Header: name + member count */}
@@ -39,6 +44,9 @@ export default function GroupCard({ group }: GroupCardProps) {
         <Text className="text-xs text-muted-foreground">
           {group.members.length} {group.members.length === 1 ? "member" : "members"}
         </Text>
+        <Pressable className="bg-foreground rounded-xl py-2 px-4 text-sm text-card-foreground active:opacity-80" onPress={() => onDelete()}>
+          <Text style={{ color: "#dc2626", fontSize: 12, fontWeight: "500" }}>Delete</Text>
+        </Pressable>
       </View>
 
       {/* Avatars */}
@@ -62,6 +70,7 @@ export default function GroupCard({ group }: GroupCardProps) {
           {group.sessionCount} {group.sessionCount === 1 ? "session" : "sessions"}
         </Text>
       </View>
+
     </Pressable>
   );
 }

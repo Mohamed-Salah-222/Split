@@ -2,6 +2,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { DraxProvider, DraxView } from "react-native-drax";
 import { Item, Member } from "../types";
+import { useEffect } from "react";
 
 const initialItems: Item[] = [
   { id: "1", name: "Apple", price: 10, quantity: 2 },
@@ -10,35 +11,21 @@ const initialItems: Item[] = [
   { id: "4", name: "Eggs", price: 30, quantity: 1 },
 ];
 
-const initialUsers: Member[] = [
-  {
-    id: "m1",
-    name: "Fady",
-    phone: "01011111111",
-    items: [],
-  },
-  {
-    id: "m2",
-    name: "Ali",
-    phone: "01022222222",
-    items: [],
-  },
-  {
-    id: "m3",
-    name: "Mohamed",
-    phone: "01033333333",
-    items: [],
-  },
-  {
-    id: "m4",
-    name: "Ahmed",
-    phone: "01044444444",
-    items: [],
-  },
-];
-export default function DragDrop() {
-  const [items, setItems] = useState<Item[]>(initialItems);
-  const [users, setUsers] = useState<Member[]>(initialUsers);
+
+export default function DragDrop(props: { items: Item[], members: Member[] }) {
+  const [items, setItems] = useState<Item[]>(props.items);
+  const [users, setUsers] = useState<Member[]>(props.members);
+  console.log("items: here :", items);
+  useEffect(() => {
+    setUsers(props.members);
+    setItems(props.items ?? []);
+  }, [props.members, props.items]);
+  // HACK: find a better way to handle this // maybe just create the user with empty items array // or don't filter items too early
+  users.forEach((user) => {
+    if (user.items === undefined) {
+      user.items = [];
+    }
+  });
 
   const handleDrop = (userId: string, item: Item) => {
     setUsers((prev) =>

@@ -35,7 +35,7 @@ function getTable(tesxtAnnotations: any) {
   throw new Error('No header found');
 }
 
-async function callGoogleCloudVisionAPI(image: File): Promise<any> {
+async function callGoogleCloudVisionAPI(image: string): Promise<any> {
   const apiKey = "AIzaSyDMZIGSg8Tlmy-KNSyCCfB8QfxFYEjaTF8"; // add api key here manually (fr5a and sla7)
 
   const test_image_url = "https://pbs.twimg.com/media/Fjfg7PzWQAElNEu?format=jpg&name=large";
@@ -188,7 +188,7 @@ If quantity is not found, default to 1. If price is not found, set to null.`;
   }
 }
 
-export async function tranformImage(image: File): Promise<any> {
+export async function tranformImage(image: string): Promise<any> {
   try {
     const googleResponse = await callGoogleCloudVisionAPI(image);
     const parsedTokens = await callOpenAI(googleResponse);

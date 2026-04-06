@@ -1,14 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Group, CreateGroupInput, Member } from "@/types";
+import { generateId } from "@/utils/helpers";
 
 const GROUPS_KEY = "splitly_groups";
 
- 
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
-
- 
 function validate(input: CreateGroupInput): string | null {
   if (!input.name || !input.creator || !Array.isArray(input.members)) {
     return "name, creator, and members array are required";
@@ -48,6 +43,7 @@ async function createGroup(input: CreateGroupInput): Promise<{ group?: Group; er
     creator: input.creator,
     members: input.members,
     createdAt: new Date().toISOString(),
+    sessionCount: input.sessionCount,
   };
 
   const groups = await getGroups();
@@ -69,11 +65,15 @@ async function updateGroup(id: string, updates: Partial<CreateGroupInput>): Prom
   if (updates.name) group.name = updates.name;
   if (updates.creator) group.creator = updates.creator;
   if (updates.members) {
-    const error = validate({
+
+    const input = {
       name: group.name,
       creator: group.creator,
       members: updates.members,
-    });
+      sessionCount: group.sessionCount,
+    } as CreateGroupInput;
+
+    const error = validate(input)
     if (error) return { error };
     group.members = updates.members;
   }
