@@ -1,7 +1,7 @@
 import { getAvatarColor, getInitials } from "@/lib/avatar";
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { Dimensions, Pressable, Text, View } from "react-native";
+import { Dimensions, Linking, Pressable, Text, View } from "react-native";
 import { DraxProvider, DraxScrollView, DraxView } from "react-native-drax";
 import { Item, Member, Group, Payer } from "../types";
 import { createWpSendMessageLink, normalizePhoneNumber } from "@/utils/helpers";
@@ -50,60 +50,36 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
 
   const formatMessage = (payer: Payer, user: Member, totalCost: number) => {
     const message = `I have ${user.items.length} items for you:
+
     ${user.items.map((item) => item.name).join(", ")}
     please pay me ${totalCost}
     at this phone number: ${payer.member.phone} `;
-    const url = createWpSendMessageLink(message, normalizePhoneNumber(payer.member.phone));
+    const url = createWpSendMessageLink(message, normalizePhoneNumber(user.phone));
     return url;
   }
 
-  const handleSendMessage = (user: Member, payer: Payer) => {
+  const handleSendMessage = async (user: Member, payer: Payer) => {
     let totalCost = (user.items ?? []).reduce((sum, item) => sum + item.price, 0);
     if (payer.amount_due < totalCost) {
       totalCost = payer.amount_due;
     }
     const message = formatMessage(payer, user, totalCost);
 
-    // Open WhatsApp link
-    // const phone = payer.member.phone?.replace(/\D/g, ""); // strip non-digits
+    // Open WhatsApp link first, then reduce amount due
+    // const phone = payer.member.phone?.replace(/\D/g, "");
     // const encodedMessage = encodeURIComponent(message);
-    window.open(message);
+    await Linking.openURL(message);
 
-    // Reduce amount due
+    // Reduce amount due only after link is opened
     setPayers((prev) =>
       prev.map((p) => {
         if (p.member.id === payer.member.id) {
-          return { ...p, amount_due: p.amount_due - totalCost }; // avoid mutating directly
+          return { ...p, amount_due: p.amount_due - totalCost };
         }
         return p;
       }),
     );
   };
-  // const handleSendMessage = (user: Member, payer: Payer) => {
-  //   let totalCost = user.items.reduce((sum, item) => sum + item.price, 0);
-  //   if (payer.amount_due < totalCost) {
-  //     totalCost = payer.amount_due;
-  //   }
-  //   const message = formatMessage(payer, user, totalCost);
-  //
-  //   // alert(`payer amoutn due before: ${payer.amount_due}`);
-  //   // Reduce amout due //
-  //   //
-  //   // NOTE: this should happend after the message is sent // not sure how should we verify this for now
-  //   setPayers((prev) => {
-  //     const newPayers = prev.map((p) => {
-  //       if (p.member.id === payer.member.id) {
-  //         p.amount_due -= totalCost;
-  //       }
-  //       return p;
-  //     });
-  //     return newPayers;
-  //   });
-  //   // send message (open whatsapp link)
-  //
-  //
-  //   // alert(`payer amoutn due after: ${payer.amount_due}`);
-  // };
 
   const handleRemoveItem = (userId: string, itemIndex: number) => {
     const user = users.find((u) => u.id === userId);

@@ -11,14 +11,25 @@ function generateId(): string {
 
 
 function normalizePhoneNumber(phone: string): string {
-  const def = "+201"
-  if (!phone.startsWith(def)) {
-    if (phone.length === 11) {
-      return def + phone.slice(2, 11);
-    }
+  const countryCode = "+20";
+
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+
+  if (cleaned.startsWith(countryCode)) {
+    return cleaned;
   }
-  return phone
+
+  if (cleaned.startsWith('0') && cleaned.length === 11) {
+    return countryCode + cleaned.slice(1);
+  }
+
+  if (cleaned.length === 10 && !cleaned.startsWith('0')) {
+    return countryCode + cleaned;
+  }
+
+  return phone;
 }
+
 function createWpSendMessageLink(message: string, phone: string): string {
   try {
     const baseUrl = "https://api.whatsapp.com/send?phone=";
