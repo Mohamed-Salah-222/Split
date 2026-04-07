@@ -18,7 +18,7 @@ function formatRelativeDate(iso: string): string {
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  // Same day check (not just 24h)
+
   const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
 
   if (isToday) return "Today";
@@ -31,7 +31,7 @@ function formatRelativeDate(iso: string): string {
 
   if (diffDays < 7) return `${diffDays} days ago`;
 
-  // Format as "Mar 15" or "Mar 15, 2024" if not current year
+
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const monthName = months[date.getMonth()];
   const day = date.getDate();

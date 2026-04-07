@@ -32,10 +32,7 @@ export type ParsedReceipt = {
   };
 };
 
-/**
- * Sends a base64-encoded image to Google Cloud Vision and returns the OCR text annotations.
- * The image parameter must be a base64 string (no data URI prefix).
- */
+
 async function callGoogleCloudVisionAPI(base64Image: string): Promise<any[]> {
   if (!GOOGLE_VISION_API_KEY) {
     throw new Error("Google Vision API key is missing");
@@ -94,9 +91,7 @@ async function callGoogleCloudVisionAPI(base64Image: string): Promise<any[]> {
   return textAnnotations;
 }
 
-/**
- * Sends OCR tokens to OpenAI to parse them into a structured receipt.
- */
+
 async function callOpenAI(textAnnotations: any[]): Promise<ParsedReceipt> {
   if (!OPENAI_API_KEY) {
     throw new Error("OpenAI API key is missing — set OPENAI_API_KEY in backend/requests.ts");
@@ -160,7 +155,6 @@ Rules:
     throw new Error("OpenAI returned empty content");
   }
 
-  // Strip markdown code fences if the model added them despite instructions
   const clean = raw.replace(/```json|```/g, "").trim();
 
   try {
@@ -170,10 +164,7 @@ Rules:
   }
 }
 
-/**
- * Main entry point. Takes a base64-encoded image of a receipt and returns a parsed structure.
- * Throws on any failure — the caller should wrap in try/catch.
- */
+
 export async function transformImage(base64Image: string): Promise<ParsedReceipt> {
   if (!base64Image) {
     throw new Error("No image provided");
@@ -184,13 +175,9 @@ export async function transformImage(base64Image: string): Promise<ParsedReceipt
   return parsed;
 }
 
-// Backwards-compat alias for the misspelled name used elsewhere
 export const tranformImage = transformImage;
 
-/**
- * Builds a WhatsApp send-message link with proper URL encoding.
- * Phone number must already be normalized to international format without the + sign.
- */
+
 export function createWpSendMessageLink(message: string, phone: string): string {
   const cleanPhone = phone.replace(/[^\d]/g, "");
   const encodedMessage = encodeURIComponent(message);

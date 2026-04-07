@@ -39,7 +39,7 @@ const CreateGroupSheet = forwardRef<BottomSheet, Props>(({ onCreated, onClose },
     const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
       if (typeof ref === "object" && ref?.current) {
         ref.current.close();
-        return true; // prevents default back behavior
+        return true;
       }
       return false;
     });

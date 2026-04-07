@@ -20,14 +20,12 @@ export default function DragDrop({ items: propItems, members: propMembers }: Pro
   const [users, setUsers] = useState<UserWithItems[]>(propMembers.map((m) => ({ ...m, items: [] })));
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Reset when props change (new session)
   useEffect(() => {
     setUsers(propMembers.map((m) => ({ ...m, items: [] })));
     setItems(propItems ?? []);
     setActiveIndex(0);
   }, [propMembers, propItems]);
 
-  // Push assignments to session context whenever users change
   useEffect(() => {
     const assignments: Assignment[] = users.filter((u) => u.items.length > 0).map((u) => ({ memberId: u.id, items: u.items }));
     updateAssignments(assignments);

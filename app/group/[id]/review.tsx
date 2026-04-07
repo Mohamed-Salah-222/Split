@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 type EditableItem = {
   id: string;
   name: string;
-  price: string; // string for input, parsed on save
+  price: string; 
   quantity: string;
 };
 
@@ -46,7 +46,7 @@ export default function ReviewPage() {
     }
   }, []);
 
-  // If somehow we land here with no session, bounce back
+
   if (!session) {
     return (
       <View
@@ -96,7 +96,7 @@ export default function ReviewPage() {
     ]);
   };
 
-  // Calculated subtotal from current items
+
   const subtotal = editableItems.reduce((sum, item) => {
     const price = parseFloat(item.price) || 0;
     const qty = parseInt(item.quantity, 10) || 0;

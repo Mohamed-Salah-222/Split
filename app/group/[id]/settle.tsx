@@ -106,7 +106,6 @@ export default function SettlePage() {
         sentMessages: Array.from(sentMessages),
       });
 
-      // Update group session count + lastSplit
       const groups = await groupStorage.getGroups();
       const updated = groups.map((g) => (g.id === group.id ? { ...g, sessionCount: g.sessionCount + 1, lastSplit: "just now" } : g));
       await AsyncStorage.setItem("splitly_groups", JSON.stringify(updated));
