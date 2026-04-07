@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import "../global.css";
 
+import { SessionProvider } from "@/lib/SessionContext";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { NAV_THEME } from "@/theme";
 
@@ -44,13 +45,19 @@ function RootLayoutNav() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
-      <ThemeProvider value={NAV_THEME[colorScheme]}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="group/[id]" options={{ headerShown: false }} />
-        </Stack>
-      </ThemeProvider>
+      <SessionProvider>
+        <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
+        <ThemeProvider value={NAV_THEME[colorScheme]}>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="group/[id]/index" options={{ headerShown: false }} />
+            <Stack.Screen name="group/[id]/review" options={{ headerShown: false }} />
+            <Stack.Screen name="group/[id]/assign" options={{ headerShown: false }} />
+            <Stack.Screen name="group/[id]/settle" options={{ headerShown: false }} />
+            <Stack.Screen name="group/[id]/sessions/[sessionId]" options={{ headerShown: false }} />
+          </Stack>
+        </ThemeProvider>
+      </SessionProvider>
     </GestureHandlerRootView>
   );
 }

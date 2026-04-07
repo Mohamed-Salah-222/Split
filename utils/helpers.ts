@@ -1,46 +1,35 @@
-function isValidId(id: any) {
-  if (typeof id !== "string" || !id) {
-    return false;
-  }
-  return true;
+function isValidId(id: any): id is string {
+  return typeof id === "string" && id.length > 0;
 }
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-
 function normalizePhoneNumber(phone: string): string {
-  const countryCode = "+20";
+  if (!phone) return "";
 
-  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  let digits = phone.replace(/\D/g, "");
 
-  if (cleaned.startsWith(countryCode)) {
-    return cleaned;
+  if (digits.startsWith("20") && digits.length === 12) {
+    return digits;
   }
 
-  if (cleaned.startsWith('0') && cleaned.length === 11) {
-    return countryCode + cleaned.slice(1);
+  if (digits.startsWith("0") && digits.length === 11) {
+    return "20" + digits.slice(1);
   }
 
-  if (cleaned.length === 10 && !cleaned.startsWith('0')) {
-    return countryCode + cleaned;
+  if (digits.length === 10) {
+    return "20" + digits;
   }
 
-  return phone;
+  return digits;
 }
 
 function createWpSendMessageLink(message: string, phone: string): string {
-  try {
-    const baseUrl = "https://api.whatsapp.com/send?phone=";
-    const url = baseUrl + phone + "&text=" + message;
-    console.log("Created whatsapp message link: ", url);
-    return url;
-  }
-  catch (error) {
-    console.error("Error creating whatsapp message link: ", error);
-    return "Error";
-  }
+  const cleanPhone = phone.replace(/\D/g, "");
+  const encodedMessage = encodeURIComponent(message);
+  return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
 }
 
-export { isValidId, generateId, createWpSendMessageLink, normalizePhoneNumber };
+export { createWpSendMessageLink, generateId, isValidId, normalizePhoneNumber };

@@ -1,41 +1,37 @@
 import { getAvatarColor, getInitials } from "@/lib/avatar";
+import { useSession } from "@/lib/SessionContext";
+import { Assignment, Item, Member } from "@/types";
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { Dimensions, Linking, Pressable, Text, View } from "react-native";
+import { Dimensions, Pressable, Text, View } from "react-native";
 import { DraxProvider, DraxScrollView, DraxView } from "react-native-drax";
-import { Item, Member, Group, Payer } from "../types";
-import { createWpSendMessageLink, normalizePhoneNumber } from "@/utils/helpers";
 
-export default function DragDrop(props: { items: Item[]; group: Group, total: number }) {
-  const [items, setItems] = useState<Item[]>(props.items);
-  const [users, setUsers] = useState<Member[]>(
-    props.group.members.map((m) => ({ ...m, items: m.items ?? [] }))
-  );
-  const [payers, setPayers] = useState<Payer[]>([]);
+type Props = {
+  items: Item[];
+  members: Member[];
+};
+
+type UserWithItems = Member & { items: Item[] };
+
+export default function DragDrop({ items: propItems, members: propMembers }: Props) {
+  const { updateAssignments } = useSession();
+
+  const [items, setItems] = useState<Item[]>(propItems);
+  const [users, setUsers] = useState<UserWithItems[]>(propMembers.map((m) => ({ ...m, items: [] })));
   const [activeIndex, setActiveIndex] = useState(0);
 
+  // Reset when props change (new session)
   useEffect(() => {
-    setUsers(
-      props.group.members.map((m) => ({
-        ...m,
-        items: m.items ?? [],
-      })),
-    );
-    setItems(props.items ?? []);
+    setUsers(propMembers.map((m) => ({ ...m, items: [] })));
+    setItems(propItems ?? []);
     setActiveIndex(0);
-  }, [props.group.members, props.items]);
+  }, [propMembers, propItems]);
 
-  const isPayer = (user: Member) => {
-    return payers.some((p) => p.member.id === user.id);
-  }
-
-  const handleMarkPayer = (user: Member) => {
-    setPayers((prev) => {
-      const newPayers = [...prev, { member: user, amount_due: 0 }];
-      const share = props.total / newPayers.length;
-      return newPayers.map((payer) => ({ ...payer, amount_due: share }));
-    });
-  };
+  // Push assignments to session context whenever users change
+  useEffect(() => {
+    const assignments: Assignment[] = users.filter((u) => u.items.length > 0).map((u) => ({ memberId: u.id, items: u.items }));
+    updateAssignments(assignments);
+  }, [users]);
 
   const handleDrop = (userId: string, item: Item) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, items: [...user.items, { ...item, quantity: 1 }] } : user)));
@@ -46,39 +42,6 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
       }
       return updated;
     });
-  };
-
-  const formatMessage = (payer: Payer, user: Member, totalCost: number) => {
-    const message = `I have ${user.items.length} items for you:
-
-    ${user.items.map((item) => item.name).join(", ")}
-    please pay me ${totalCost}
-    at this phone number: ${payer.member.phone} `;
-    const url = createWpSendMessageLink(message, normalizePhoneNumber(user.phone));
-    return url;
-  }
-
-  const handleSendMessage = async (user: Member, payer: Payer) => {
-    let totalCost = (user.items ?? []).reduce((sum, item) => sum + item.price, 0);
-    if (payer.amount_due < totalCost) {
-      totalCost = payer.amount_due;
-    }
-    const message = formatMessage(payer, user, totalCost);
-
-    // Open WhatsApp link first, then reduce amount due
-    // const phone = payer.member.phone?.replace(/\D/g, "");
-    // const encodedMessage = encodeURIComponent(message);
-    await Linking.openURL(message);
-
-    // Reduce amount due only after link is opened
-    setPayers((prev) =>
-      prev.map((p) => {
-        if (p.member.id === payer.member.id) {
-          return { ...p, amount_due: p.amount_due - totalCost };
-        }
-        return p;
-      }),
-    );
   };
 
   const handleRemoveItem = (userId: string, itemIndex: number) => {
@@ -97,37 +60,22 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, items: u.items.filter((_, i) => i !== itemIndex) } : u)));
   };
 
-  const getTotalForUser = (user: Member) => {
+  const getTotalForUser = (user: UserWithItems) => {
     return user.items.reduce((sum, item) => sum + item.price, 0);
   };
 
   const activeItem = items[activeIndex];
+  const cardWidth = Dimensions.get("window").width - 40 - 32 - 32 - 16;
 
   return (
     <DraxProvider>
       <View style={{ flex: 1 }}>
-        {/* Items - Single card with arrow navigation */}
+        {/* Items section */}
         <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: "600",
-              color: "#666666",
-              marginBottom: 10,
-            }}
-          >
-            {items.length > 0 ? `Items(${activeIndex + 1} of ${items.length})` : "Items (0 remaining)"}
-          </Text>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: "#666666", marginBottom: 10 }}>{items.length > 0 ? `Items (${activeIndex + 1} of ${items.length})` : "Items (0 remaining)"}</Text>
 
           {items.length > 0 && activeItem ? (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "flex-start",
-                gap: 8,
-              }}
-            >
-              {/* Left arrow */}
+            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
               <Pressable
                 onPress={() => setActiveIndex((prev) => Math.max(0, prev - 1))}
                 disabled={activeIndex <= 0}
@@ -145,13 +93,12 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                 <Feather name="chevron-left" size={16} color={activeIndex > 0 ? "#1a1a1a" : "#CCCCCC"} />
               </Pressable>
 
-              {/* Item card */}
               <DraxView
                 key={activeItem.id}
                 draggable
                 dragPayload={activeItem}
                 style={{
-                  width: Dimensions.get("window").width - 40 - 32 - 32 - 16,
+                  width: cardWidth,
                   backgroundColor: "#FFFFFF",
                   borderRadius: 12,
                   borderWidth: 1,
@@ -162,14 +109,7 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                 draggingStyle={{ opacity: 0.4 }}
                 dragReleasedStyle={{ opacity: 1 }}
               >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "500",
-                    color: "#1a1a1a",
-                  }}
-                  numberOfLines={1}
-                >
+                <Text style={{ fontSize: 14, fontWeight: "500", color: "#1a1a1a" }} numberOfLines={1}>
                   {activeItem.name}
                 </Text>
                 <View
@@ -180,15 +120,7 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                     marginTop: 4,
                   }}
                 >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "600",
-                      color: "#1a6ee1",
-                    }}
-                  >
-                    {activeItem.price.toFixed(2)}
-                  </Text>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#1a6ee1" }}>{activeItem.price.toFixed(2)} LE</Text>
                   {activeItem.quantity > 1 && (
                     <View
                       style={{
@@ -198,21 +130,12 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                         paddingVertical: 2,
                       }}
                     >
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: "600",
-                          color: "#888888",
-                        }}
-                      >
-                        ×{activeItem.quantity}
-                      </Text>
+                      <Text style={{ fontSize: 11, fontWeight: "600", color: "#888888" }}>×{activeItem.quantity}</Text>
                     </View>
                   )}
                 </View>
               </DraxView>
 
-              {/* Right arrow */}
               <Pressable
                 onPress={() => setActiveIndex((prev) => Math.min(items.length - 1, prev + 1))}
                 disabled={activeIndex >= items.length - 1}
@@ -245,11 +168,9 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
               <Feather name="check-circle" size={20} color="#CCCCCC" />
               <Text style={{ fontSize: 14, color: "#AAAAAA", marginTop: 6 }}>All items assigned</Text>
             </View>
-          )
-          }
+          )}
         </View>
 
-        {/* Drag hint */}
         {items.length > 0 && (
           <View
             style={{
@@ -265,7 +186,6 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
           </View>
         )}
 
-        {/* Members - Vertical drop zones */}
         <DraxScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
@@ -277,7 +197,7 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
         >
           {users.map((user, userIndex) => {
             const color = getAvatarColor(userIndex);
-            const total = getTotalForUser(user);
+            const userTotal = getTotalForUser(user);
 
             return (
               <DraxView
@@ -300,7 +220,6 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                   backgroundColor: "#F8FAFF",
                 }}
               >
-                {/* User header */}
                 <View
                   style={{
                     flexDirection: "row",
@@ -320,39 +239,17 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                       justifyContent: "center",
                     }}
                   >
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "600",
-                        color: color.text,
-                      }}
-                    >
-                      {getInitials(user.name)}
-                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: color.text }}>{getInitials(user.name)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 15,
-                        fontWeight: "600",
-                        color: "#1a1a1a",
-                      }}
-                    >
-                      {user.name}
-                    </Text>
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#1a1a1a" }}>{user.name}</Text>
                     {user.items.length > 0 && (
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          color: "#888888",
-                          marginTop: 2,
-                        }}
-                      >
+                      <Text style={{ fontSize: 12, color: "#888888", marginTop: 2 }}>
                         {user.items.length} {user.items.length === 1 ? "item" : "items"}
                       </Text>
                     )}
                   </View>
-                  {total > 0 && (
+                  {userTotal > 0 && (
                     <View
                       style={{
                         backgroundColor: "#F0F7FF",
@@ -361,97 +258,11 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                         paddingVertical: 4,
                       }}
                     >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "700",
-                          color: "#1a6ee1",
-                        }}
-                      >
-                        {total.toFixed(2)}
-                      </Text>
+                      <Text style={{ fontSize: 14, fontWeight: "700", color: "#1a6ee1" }}>{userTotal.toFixed(2)} LE</Text>
                     </View>
                   )}
                 </View>
 
-                {user.phone && !isPayer(user) && (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      gap: 12,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "600",
-                        color: "#1a1a1a",
-                      }}
-                    >
-                      {payers.filter((p) => p.amount_due > 0).map((p) => {
-                        return (
-                          <Pressable
-                            key={p.member.id}
-                            onPress={() => {
-                              handleSendMessage(user, p)
-                            }}
-                            style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: 6,
-                              backgroundColor: "#FEE2E2",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <Feather name="message-square" size={12} color="#EF4444" />
-                          </Pressable>
-                        );
-                      })}
-
-                    </Text>
-                  </View>
-                )
-                }
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    gap: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "600",
-                      color: "#1a1a1a",
-                    }}
-                  >
-                    mark payer
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      handleMarkPayer(user)
-                    }}
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 6,
-                      backgroundColor: "#FEE2E2",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Feather name="message-circle" size={12} color="#EF4444" />
-                  </Pressable>
-                </View>
-                {/* Assigned items */}
                 {user.items.length > 0 ? (
                   <View
                     style={{
@@ -463,7 +274,7 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                   >
                     {user.items.map((item, itemIndex) => (
                       <View
-                        key={`${item.id} -${itemIndex} `}
+                        key={`${item.id}-${itemIndex}`}
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
@@ -472,14 +283,7 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                           borderBottomColor: "#F8F8F8",
                         }}
                       >
-                        <Text
-                          style={{
-                            flex: 1,
-                            fontSize: 14,
-                            color: "#1a1a1a",
-                          }}
-                          numberOfLines={1}
-                        >
+                        <Text style={{ flex: 1, fontSize: 14, color: "#1a1a1a" }} numberOfLines={1}>
                           {item.name}
                         </Text>
                         <Text
@@ -490,7 +294,7 @@ export default function DragDrop(props: { items: Item[]; group: Group, total: nu
                             marginRight: 10,
                           }}
                         >
-                          {item.price.toFixed(2)}
+                          {item.price.toFixed(2)} LE
                         </Text>
                         <Pressable
                           onPress={() => handleRemoveItem(user.id, itemIndex)}

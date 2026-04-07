@@ -12,10 +12,22 @@ export type Item = {
   quantity: number;
 };
 
-export type Payer = {
-  member: Member;
-  amount_due: number;
-}
+export type Assignment = {
+  memberId: string;
+  items: Item[];
+};
+
+export type Session = {
+  id: string;
+  groupId: string;
+  createdAt: string;
+  store: string | null;
+  items: Item[];
+  total: number;
+  assignments: Assignment[];
+  payerId: string;
+  sentMessages: string[];
+};
 
 export type Group = {
   id: string;
@@ -31,6 +43,4 @@ export type CreateGroupInput = {
   name: string;
   creator: string;
   members: Member[];
-  sessionCount: number;
 };
-0
