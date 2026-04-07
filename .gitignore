@@ -47,3 +47,6 @@ yarn-error.*
 backend/node_modules/
 backend/dist/
 
+.env
+.env.local
+
